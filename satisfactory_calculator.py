@@ -1,3 +1,6 @@
+from collections import OrderedDict
+
+
 class Thing():
     def __init__(self, name, components={}):
         self.name = name
@@ -5,29 +8,34 @@ class Thing():
             raise Exception('Component cannot be made of itself.')
         assert all(isinstance(c, self.__class__) for c in components)
         self.components = components
+        self.base_units = self._resolve()
 
-    def resolve(self):
+    def _resolve(self):
         if len(self.components) == 0:
             return {self: 1}
 
         base_units = {}
         for component, amount in self.components.items():
-            component_base_units = component.resolve()
+            component_base_units = component.base_units
             for base_component, base_amount in component_base_units.items():
                 base_units.setdefault(base_component, 0)
                 base_units[base_component] += amount * base_amount
 
-        for k, v in base_units.items():
-           base_units[k] = round(v, 10)
+        base_units = OrderedDict(sorted(base_units.items(), key=lambda x: x[1], reverse=True))
         return base_units
 
     def __str__(self):
-        return self.name
+        if len(self.components) == 0:
+            return self.name
+        per_base_unit = ', '.join(f'{k}: {v:g}' for k,v in self.base_units.items())
+        output = f'{self.name}'
+        output += f'  ({per_base_unit})'
+        return output
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {str(self)}>'
 
-iron_ore = Thing('iron-ore')
+iron_ore = Thing('iron')
 iron_ingot = Thing('iron-ingot', {iron_ore: 1})
 iron_plate = Thing('iron-plate', {iron_ingot: 1.5})
 iron_rod = Thing('iron-rod', {iron_ingot: 1})
@@ -37,7 +45,7 @@ rotor = Thing('rotor', {iron_rod: 5, screw: 25})
 smart_plating = Thing('smart-plating', {reinforced_plate: 1, rotor: 1})
 modular_frame = Thing('modular-frame', {reinforced_plate: 1.5, iron_rod: 6})
 
-copper_ore = Thing('copper-ore')
+copper_ore = Thing('copper')
 copper_ingot = Thing('copper-ingot', {copper_ore: 1})
 wire = Thing('wire', {copper_ingot: .5})
 copper_sheet = Thing('copper-sheet', {copper_ingot: 2})
@@ -56,7 +64,7 @@ versatile_framework = Thing('versatile-framework', {modular_frame: 1, steel_beam
 stator = Thing('stator', {steel_pipe: 3, wire: 8})
 automated_wiring = Thing('automated-wiring', {stator: 1, cable: 20})
 
-caterium_ore = Thing('caterium-ore')
+caterium_ore = Thing('caterium')
 caterium_ingot = Thing('caterium-ingot', {caterium_ore: 3})
 quickwire = Thing('quickwire', {caterium_ingot: 1/5})
 
@@ -72,39 +80,18 @@ high_speed_connector = Thing('high-speed-connector', {circuit_board: 1, cable: 1
 heavy_modular_frame = Thing('heavy-modular-frame', {modular_frame: 5, steel_pipe: 15, encased_steel_beam: 5, screw: 100})
 adaptive_control_unit = Thing('adaptive-control-unit', {automated_wiring: 7.5, circuit_board: 5, heavy_modular_frame: 1, computer: 1})
 
-# print thing
-pt = lambda t: print(t, t.resolve())
 
-pt(iron_ore)
-pt(iron_ingot)
-pt(iron_plate)
-pt(iron_rod)
-pt(screw)
-pt(reinforced_plate)
-pt(rotor)
-pt(smart_plating)
-pt(modular_frame)
 
-pt(copper_ingot)
-pt(wire)
-pt(cable)
-pt(copper_sheet)
+grouped_things = {}
 
-pt(steel_beam)
-pt(steel_pipe)
-pt(encased_steel_beam)
+for var in dict(locals()).values():
+    if isinstance(var, Thing):
+        if len(var.components) > 0:
+            group = next(iter(var.base_units))
+            if group not in grouped_things:
+                grouped_things[group] = []
+            grouped_things[group].append(var)
 
-pt(versatile_framework)
-pt(stator)
-pt(automated_wiring)
-
-pt(caterium_ore)
-pt(caterium_ingot)
-pt(quickwire)
-pt(ai_limiter)
-
-pt(motor)
-pt(heavy_modular_frame)
-pt(adaptive_control_unit)
-
-pt(high_speed_connector)
+for k,v in grouped_things.items():
+    print('\n%s tower:' % k)
+    print('\n'.join(str(x) for x in v))
