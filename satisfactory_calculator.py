@@ -1,8 +1,38 @@
 from collections import OrderedDict
+import math
 
+def generate_ngmop3a2_lookup(max_value):
+    max_power = math.ceil(math.log(max_value, 2))
+    answer = {}
+    for power_2 in range(max_power + 1):
+        for power_3 in range(max_power + 1):
+            result = 2 ** power_2 * 3 ** power_3
+            if result <= 2 ** max_power:
+                answer[result] = result
 
-def ngmop3a2(value):
-    return round(value, 1)
+    i = 0
+    for j in sorted(answer.keys()):
+        while i <= j:
+            answer[i] = j
+            i += 1
+    return answer
+
+def ngmop3a2(n):
+    n = math.ceil(n)
+    """Get the nearest multiple of powers 3 and 2 that is larger than n"""
+    if n < 1:
+        return 1
+    elif n > 2 ** 20:
+        raise NotImplementedError('Number is too large for lookup table implementation.')
+
+    lookup_table = getattr(ngmop3a2, 'lookup_table', {})
+
+    try:
+        return lookup_table[n]
+    except KeyError:
+        ngmop3a2.lookup_table = generate_ngmop3a2_lookup(n)
+
+    return ngmop3a2(n)
 
 
 class ThingRecipe():
