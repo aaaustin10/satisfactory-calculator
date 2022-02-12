@@ -2,17 +2,17 @@ from collections import OrderedDict
 
 
 class ThingRecipe():
-    def __init__(self, name, time_to_produce=None, amount_produced=None, components={}):
+    def __init__(self, name, seconds_to_produce=None, amount_produced=None, components={}):
         self.name = name
         if self.name in components:
             raise Exception('Component cannot be made of itself.')
         assert all(isinstance(c, ThingRecipe) for c in components)
         self.components = components
-        self.time_to_produce = time_to_produce
+        self.seconds_to_produce = seconds_to_produce
         self.amount_produced = amount_produced
         self.base_units = self._resolve()
         if len(self.components) > 0:
-            self.per_min_mult = self.amount_produced / self.time_to_produce * 60
+            self.per_min_mult = self.amount_produced / self.seconds_to_produce * 60
 
     def _resolve(self):
         if len(self.components) == 0:
@@ -43,11 +43,11 @@ class ThingRecipe():
 
 class ThingPerMin(ThingRecipe):
     def __init__(self, name, amount_produced_per_min=None, components_per_min={}):
-        time_to_produce = 1 / amount_produced_per_min * 60
+        seconds_to_produce = 60 / amount_produced_per_min
         components = {}
-        for k,v in components_per_min.items():
-            components[k] = v / 60 * time_to_produce
-        super(ThingPerMin, self).__init__(name, time_to_produce, 1, components)
+        for component, component_per_min in components_per_min.items():
+            components[component] = component_per_min / amount_produced_per_min # == components per Thing
+        super(ThingPerMin, self).__init__(name, seconds_to_produce, 1, components)
 
 
 
