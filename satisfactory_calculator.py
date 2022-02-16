@@ -121,12 +121,14 @@ copper_ingot = ThingRecipe('copper-ingot', 2, 1, {copper_ore: 1})
 wire = ThingRecipe('wire', 4, 2, {copper_ingot: 1})
 copper_sheet = ThingRecipe('copper-sheet', 6, 1, {copper_ingot: 2})
 cable = ThingRecipe('cable', 2, 1, {wire: 2})
+beacon = ThingRecipe('beacon', 8, 1, {iron_plate: 3, iron_rod: 1, wire: 15, cable: 2})
 
 limestone = ThingRecipe('limestone')
 concrete = ThingRecipe('concrete', 4, 1, {limestone: 3})
 
-coal = ThingRecipe('coal')
-steel_ingot = ThingRecipe('steel')#, 4, 3, {iron_ore: 3, coal: 3})
+steel_iron = ThingRecipe('steel-iron')
+steel_coal = ThingRecipe('steel-coal')
+steel_ingot = ThingRecipe('steel-ingot', 4, 3, {steel_iron: 3, steel_coal: 3})
 steel_beam = ThingRecipe('steel-beam', 4, 1, {steel_ingot: 4})
 steel_pipe = ThingRecipe('steel-pipe', 6, 2, {steel_ingot: 3})
 encased_industrial_beam = ThingRecipe('encased-industrial-beam', 10, 1, {steel_beam: 4, concrete: 5})
@@ -144,26 +146,55 @@ ai_limiter = ThingRecipe('ai-limiter', 12, 1, {quickwire: 20, copper_sheet: 5})
 motor = ThingRecipe('motor', 12, 1, {stator: 2, rotor: 2})
 
 crude_oil = ThingRecipe('oil')
-polymer_resin = ThingRecipe('polymer_resin')
+polymer_resin = ThingRecipe('polymer-resin')
 fuel = ThingRecipe('fuel', 6, 4, {crude_oil: 6}) # byproducts: {polymer_resin: 3}
 plastic = ThingRecipe('plastic', 6, 2, {crude_oil: 3}) # byproducts: {heavy_oil_residue: 1}
 rubber = ThingRecipe('rubber', 6, 2, {crude_oil: 3}) # byproducts: {heavy_oil_residue: 2}
 #residual_fuel = ThingRecipe('residual-fuel', 6, 4, {heavy_oil_residue: 6})
 #residual_plastic = ThingRecipe('residual-plastic', 5, 2, {polymer_resin: 6})
 #residual_rubber = ThingRecipe('residual-rubber', 6, 2, {polymer_resin: 4})
+fuel_generator = ThingPerMin('fuel-generator', 150, {fuel: 12})
+
+sulfur = ThingRecipe('sulfur')
+sulfur_coal = ThingRecipe('sulfur-coal')
+black_powder = ThingRecipe('black-powder', 8, 1, {sulfur_coal: 1, sulfur: 2})
+nobelisk = ThingRecipe('nobelisk', 20, 1, {black_powder: 5, steel_pipe: 10})
+rifle_cartridge = ThingRecipe('rifle-cartridge', 20, 5, {beacon: 1, steel_pipe: 10, black_powder: 10, rubber: 10})
+
+raw_quartz = ThingRecipe('raw-quartz')
+quartz_crystal = ThingRecipe('quartz-crystal', 8, 3, {raw_quartz: 5})
+silica = ThingRecipe('silica', 8, 5, {raw_quartz: 3})
+crystal_oscillator = ThingRecipe('crystal-oscillator', 120, 2, {quartz_crystal: 36, cable: 28, reinforced_plate: 5})
+
+empty_canister = ThingRecipe('empty-canister', 4, 4, {plastic: 2})
+packaged_fuel = ThingRecipe('packaged_fuel', 3, 2, {fuel: 2, empty_canister: 2})
 
 circuit_board = ThingRecipe('circuit-board', 8, 1, {copper_sheet: 2, plastic: 4})
 computer = ThingRecipe('computer', 24, 1, {circuit_board: 10, cable: 9, plastic: 18, screw: 52})
 high_speed_connector = ThingRecipe('high-speed-connector', 16, 1, {circuit_board: 1, cable: 10, quickwire: 56})
+supercomputer = ThingRecipe('supercomputer', 32, 1, {computer: 2, ai_limiter: 2, high_speed_connector: 3, plastic: 28})
 
 heavy_modular_frame = ThingRecipe('heavy-modular-frame', 30, 1, {modular_frame: 5, steel_pipe: 15, encased_industrial_beam: 5, screw: 100})
+modular_engine = ThingRecipe('modular-engine', 60, 1, {motor: 2, rubber: 15, smart_plating: 2})
 adaptive_control_unit = ThingPerMin('adaptive-control-unit', 1, {automated_wiring: 7.5, circuit_board: 5, heavy_modular_frame: 1, computer: 1})
+portable_miner = ThingRecipe('portable-miner', 60, 1, {motor: 1, steel_pipe: 4, iron_rod: 4, iron_plate: 2})
+
+water = ThingRecipe('water')
+bauxite = ThingRecipe('bauxite')
+bauxite_coal = ThingRecipe('bauxite_coal')
+alumina_solution = ThingRecipe('alumina-solution', 6, 12, {bauxite: 12, water: 18}) # byproducts: {silica: 5}
+aluminum_scrap = ThingRecipe('aluminum-scrap', 1, 6, {alumina_solution: 4, bauxite_coal: 2}) # byproducts: {water: 2}
+aluminum_ingot = ThingRecipe('aluminum-ingot', 4, 4, {aluminum_scrap: 6, silica: 5})
+aluminum_casing = ThingRecipe('aluminum-casing', 2, 2, {aluminum_ingot: 3})
+alclad_aluminum_sheet = ThingRecipe('alclad-aluminum-sheet', 6, 3, {aluminum_ingot: 3, copper_ingot: 1})
+
+radio_control_unit = ThingRecipe('radio-control-unit', 48, 2, {aluminum_casing: 32, crystal_oscillator: 1, computer: 1})
 
 
 ################
 # UPDATE THESE #
 ################
-MINING_RATES = {iron_ore: 240*4, copper_ore: 240*2, limestone: 240*2, steel_ingot: 240*2, coal: 120*2, caterium_ore: 240, crude_oil: 600}
+MINING_RATES = {iron_ore: 240*4, copper_ore: 240*2, limestone: 240*2, steel_iron: 240*2, steel_coal: 240*2, caterium_ore: 240, crude_oil: 600, sulfur: 240, sulfur_coal: 120*2, raw_quartz: 240*2, bauxite: 240+120+60, bauxite_coal: 240*2, water: 4*120}
 ################
 
 
