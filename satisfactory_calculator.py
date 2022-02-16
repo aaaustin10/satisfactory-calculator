@@ -36,18 +36,12 @@ def ngmop3a2(n):
 
 
 class ThingRecipe():
-    def __init__(self, name, seconds_to_produce=None, amount_produced=None, components={}, byproducts={}):
-        self.name = name
-        if self.name in components:
-            raise Exception('Component cannot be made of itself.')
-        assert all(isinstance(c, ThingRecipe) for c in components)
-        assert all(isinstance(b, ThingRecipe) for b in byproducts)
+    def __init__(self, seconds_to_produce, amount_produced, components, byproducts={}):
         self.components = components
         self.byproducts = byproducts
         self.seconds_to_produce = seconds_to_produce
         self.amount_produced = amount_produced
-        if len(self.components) > 0:
-            self.per_min_mult = self.amount_produced / self.seconds_to_produce * 60
+        self.per_min_mult = self.amount_produced / self.seconds_to_produce * 60
 
     def building_count(self):
         limiting_factors = []
@@ -68,12 +62,12 @@ class ThingRecipe():
         if base_units:
             return base_units
 
-        if len(self.components) == 0:
-            self._base_units = {self: 1}
-            return self._base_units
-
         for component, amount in self.components.items():
-            component_base_units = component.base_units
+            try:
+                component_base_units = ALL_THINGS[component].base_units
+            except KeyError:
+                assert component in MINING_RATES, f"Couldn't find {component!r} in ALL_THINGS or MINING_RATES"
+                component_base_units = {component: 1}
             for base_component, base_amount in component_base_units.items():
                 base_units.setdefault(base_component, 0)
                 base_units[base_component] += (amount / self.amount_produced) * base_amount
@@ -82,14 +76,11 @@ class ThingRecipe():
         return self._base_units
 
     def __str__(self):
-        if len(self.components) == 0:
-            return self.name
         building_count, limiting_ingredients = self.building_count()
         building_count = ngmop3a2(building_count)
         per_base_unit = ', '.join(f'{k}: {v:g}' for k,v in self.base_units.items())
         per_min = ', '.join(f'{v*self.per_min_mult:g} {k}/min' for k,v in self.base_units.items())
-        output = f'{self.name}'
-        output += f'  ({per_base_unit})'
+        output = f'({per_base_unit})'
         output += f'  [{per_min}]'
         output += f'  {building_count:g} buildings'
         if len(self.base_units) > 1:
@@ -100,7 +91,7 @@ class ThingRecipe():
         return f'<{self.__class__.__name__}: {str(self)}>'
 
 class ThingPerMin(ThingRecipe):
-    def __init__(self, name, amount_produced_per_min=None, components_per_min={}, byproducts_per_min={}):
+    def __init__(self, amount_produced_per_min=None, components_per_min={}, byproducts_per_min={}):
         seconds_to_produce = 60 / amount_produced_per_min
 
         components = {}
@@ -111,131 +102,116 @@ class ThingPerMin(ThingRecipe):
         for byproduct, byproduct_per_min in byproducts_per_min.items():
             byproducts[byproduct] = byproduct_per_min / amount_produced_per_min # == byproducts per ThingRecipe
 
-        super(ThingPerMin, self).__init__(name, seconds_to_produce, 1, components, byproducts)
+        super(ThingPerMin, self).__init__(seconds_to_produce, 1, components, byproducts)
 
 
 
-# ThingRecipe('name', seconds_to_produce, amount_produced, {ingredients: count}, {byproducts: count})
-# ThingPerMin('name', amount_produced_per_min, {ingredients: count_per_min}, {byproducts: count_per_min})
+# ThingRecipe(seconds_to_produce, amount_produced, {ingredients: count}, {byproducts: count})
+# ThingPerMin(amount_produced_per_min, {ingredients: count_per_min}, {byproducts: count_per_min})
 
-iron_ore = ThingRecipe('iron')
-iron_ingot = ThingRecipe('iron-ingot', 2, 1, {iron_ore: 1})
-iron_plate = ThingRecipe('iron-plate', 6, 2, {iron_ingot: 3})
-iron_rod = ThingRecipe('iron-rod', 4, 1, {iron_ingot: 1})
-screw = ThingRecipe('screw', 6, 4, {iron_rod: 1})
-reinforced_plate = ThingRecipe('reinforced-plate', 12, 1, {iron_plate: 6, screw: 12})
-rotor = ThingRecipe('rotor', 15, 1, {iron_rod: 5, screw: 25})
-smart_plating = ThingRecipe('smart-plating', 30, 1, {reinforced_plate: 1, rotor: 1})
-modular_frame = ThingRecipe('modular-frame', 60, 2, {reinforced_plate: 3, iron_rod: 12})
+ALL_THINGS = {
+    'iron-ingot': ThingRecipe(2, 1, {'iron': 1}),
+    'iron-plate': ThingRecipe(6, 2, {'iron-ingot': 3}),
+    'iron-rod': ThingRecipe(4, 1, {'iron-ingot': 1}),
+    'screw': ThingRecipe(6, 4, {'iron-rod': 1}),
+    'reinforced-plate': ThingRecipe(12, 1, {'iron-plate': 6, 'screw': 12}),
+    'rotor': ThingRecipe(15, 1, {'iron-rod': 5, 'screw': 25}),
+    'smart-plating': ThingRecipe(30, 1, {'reinforced-plate': 1, 'rotor': 1}),
+    'modular-frame': ThingRecipe(60, 2, {'reinforced-plate': 3, 'iron-rod': 12}),
 
-copper_ore = ThingRecipe('copper')
-copper_ingot = ThingRecipe('copper-ingot', 2, 1, {copper_ore: 1})
-wire = ThingRecipe('wire', 4, 2, {copper_ingot: 1})
-copper_sheet = ThingRecipe('copper-sheet', 6, 1, {copper_ingot: 2})
-cable = ThingRecipe('cable', 2, 1, {wire: 2})
-beacon = ThingRecipe('beacon', 8, 1, {iron_plate: 3, iron_rod: 1, wire: 15, cable: 2})
+    'copper-ingot': ThingRecipe(2, 1, {'copper': 1}),
+    'wire': ThingRecipe(4, 2, {'copper-ingot': 1}),
+    'copper-sheet': ThingRecipe(6, 1, {'copper-ingot': 2}),
+    'cable': ThingRecipe(2, 1, {'wire': 2}),
+    'beacon': ThingRecipe(8, 1, {'iron-plate': 3, 'iron-rod': 1, 'wire': 15, 'cable': 2}),
 
-limestone = ThingRecipe('limestone')
-concrete = ThingRecipe('concrete', 4, 1, {limestone: 3})
+    'concrete': ThingRecipe(4, 1, {'limestone': 3}),
 
-steel_iron = ThingRecipe('steel-iron')
-steel_coal = ThingRecipe('steel-coal')
-steel_ingot = ThingRecipe('steel-ingot', 4, 3, {steel_iron: 3, steel_coal: 3})
-steel_beam = ThingRecipe('steel-beam', 4, 1, {steel_ingot: 4})
-steel_pipe = ThingRecipe('steel-pipe', 6, 2, {steel_ingot: 3})
-encased_industrial_beam = ThingRecipe('encased-industrial-beam', 10, 1, {steel_beam: 4, concrete: 5})
+    'steel-ingot': ThingRecipe(4, 3, {'steel-iron': 3, 'steel-coal': 3}),
+    'steel-beam': ThingRecipe(4, 1, {'steel-ingot': 4}),
+    'steel-pipe': ThingRecipe(6, 2, {'steel-ingot': 3}),
+    'encased-industrial-beam': ThingRecipe(10, 1, {'steel-beam': 4, 'concrete': 5}),
 
-versatile_framework = ThingRecipe('versatile-framework', 24, 2, {modular_frame: 1, steel_beam: 12})
-stator = ThingRecipe('stator', 12, 1, {steel_pipe: 3, wire: 8})
-automated_wiring = ThingRecipe('automated-wiring', 24, 1, {stator: 1, cable: 20})
+    'versatile-framework': ThingRecipe(24, 2, {'modular-frame': 1, 'steel-beam': 12}),
+    'stator': ThingRecipe(12, 1, {'steel-pipe': 3, 'wire': 8}),
+    'automated-wiring': ThingRecipe(24, 1, {'stator': 1, 'cable': 20}),
 
-caterium_ore = ThingRecipe('caterium')
-caterium_ingot = ThingRecipe('caterium-ingot', 4, 1, {caterium_ore: 3})
-quickwire = ThingRecipe('quickwire', 5, 5, {caterium_ingot: 1})
+    'caterium-ingot': ThingRecipe(4, 1, {'caterium': 3}),
+    'quickwire': ThingRecipe(5, 5, {'caterium-ingot': 1}),
 
-ai_limiter = ThingRecipe('ai-limiter', 12, 1, {quickwire: 20, copper_sheet: 5})
+    'ai-limiter': ThingRecipe(12, 1, {'quickwire': 20, 'copper-sheet': 5}),
 
-motor = ThingRecipe('motor', 12, 1, {stator: 2, rotor: 2})
+    'motor': ThingRecipe(12, 1, {'stator': 2, 'rotor': 2}),
 
-crude_oil = ThingRecipe('oil')
-polymer_resin = ThingRecipe('polymer-resin')
-heavy_oil_residue = ThingRecipe('heavy-oil-residue')
-fuel = ThingRecipe('fuel', 6, 4, {crude_oil: 6}, {polymer_resin: 3})
-plastic = ThingRecipe('plastic', 6, 2, {crude_oil: 3}, {heavy_oil_residue: 1})
-rubber = ThingRecipe('rubber', 6, 2, {crude_oil: 3}, {heavy_oil_residue: 2})
-residual_fuel = ThingRecipe('residual-fuel', 6, 4, {heavy_oil_residue: 6})
-residual_plastic = ThingRecipe('residual-plastic', 5, 2, {polymer_resin: 6})
-residual_rubber = ThingRecipe('residual-rubber', 6, 2, {polymer_resin: 4})
-fuel_generator = ThingPerMin('fuel-generator', 150, {fuel: 12})
+    'fuel': ThingRecipe(6, 4, {'oil': 6}, {'polymer-resin': 3}),
+    'plastic': ThingRecipe(6, 2, {'oil': 3}, {'heavy-oil-residue': 1}),
+    'rubber': ThingRecipe(6, 2, {'oil': 3}, {'heavy-oil-residue': 2}),
+    'residual-fuel': ThingRecipe(6, 4, {'heavy-oil-residue': 6}),
+    'residual-plastic': ThingRecipe(6, 2, {'polymer-resin': 6, 'water': 2}),
+    'residual-rubber': ThingRecipe(6, 2, {'polymer-resin': 4, 'water': 4}),
+    'fuel-generator': ThingPerMin(150, {'fuel': 12}),
 
-sulfur = ThingRecipe('sulfur')
-sulfur_coal = ThingRecipe('sulfur-coal')
-black_powder = ThingRecipe('black-powder', 8, 1, {sulfur_coal: 1, sulfur: 2})
-nobelisk = ThingRecipe('nobelisk', 20, 1, {black_powder: 5, steel_pipe: 10})
-rifle_cartridge = ThingRecipe('rifle-cartridge', 20, 5, {beacon: 1, steel_pipe: 10, black_powder: 10, rubber: 10})
+    'black-powder': ThingRecipe(8, 1, {'sulfur-coal': 1, 'sulfur': 2}),
+    'nobelisk': ThingRecipe(20, 1, {'black-powder': 5, 'steel-pipe': 10}),
+    'rifle-cartridge': ThingRecipe(20, 5, {'beacon': 1, 'steel-pipe': 10, 'black-powder': 10, 'rubber': 10}),
 
-raw_quartz = ThingRecipe('raw-quartz')
-quartz_crystal = ThingRecipe('quartz-crystal', 8, 3, {raw_quartz: 5})
-silica = ThingRecipe('silica', 8, 5, {raw_quartz: 3})
-crystal_oscillator = ThingRecipe('crystal-oscillator', 120, 2, {quartz_crystal: 36, cable: 28, reinforced_plate: 5})
+    'quartz-crystal': ThingRecipe(8, 3, {'raw-quartz': 5}),
+    'silica': ThingRecipe(8, 5, {'raw-quartz': 3}),
+    'crystal-oscillator': ThingRecipe(120, 2, {'quartz-crystal': 36, 'cable': 28, 'reinforced-plate': 5}),
 
-empty_canister = ThingRecipe('empty-canister', 4, 4, {plastic: 2})
-packaged_fuel = ThingRecipe('packaged_fuel', 3, 2, {fuel: 2, empty_canister: 2})
+    'empty-canister': ThingRecipe(4, 4, {'plastic': 2}),
+    'packaged-fuel': ThingRecipe(3, 2, {'fuel': 2, 'empty-canister': 2}),
 
-circuit_board = ThingRecipe('circuit-board', 8, 1, {copper_sheet: 2, plastic: 4})
-computer = ThingRecipe('computer', 24, 1, {circuit_board: 10, cable: 9, plastic: 18, screw: 52})
-high_speed_connector = ThingRecipe('high-speed-connector', 16, 1, {circuit_board: 1, cable: 10, quickwire: 56})
-supercomputer = ThingRecipe('supercomputer', 32, 1, {computer: 2, ai_limiter: 2, high_speed_connector: 3, plastic: 28})
+    'circuit-board': ThingRecipe(8, 1, {'copper-sheet': 2, 'plastic': 4}),
+    'computer': ThingRecipe(24, 1, {'circuit-board': 10, 'cable': 9, 'plastic': 18, 'screw': 52}),
+    'high-speed-connector': ThingRecipe(16, 1, {'circuit-board': 1, 'cable': 10, 'quickwire': 56}),
+    'supercomputer': ThingRecipe(32, 1, {'computer': 2, 'ai-limiter': 2, 'high-speed-connector': 3, 'plastic': 28}),
 
-heavy_modular_frame = ThingRecipe('heavy-modular-frame', 30, 1, {modular_frame: 5, steel_pipe: 15, encased_industrial_beam: 5, screw: 100})
-modular_engine = ThingRecipe('modular-engine', 60, 1, {motor: 2, rubber: 15, smart_plating: 2})
-adaptive_control_unit = ThingPerMin('adaptive-control-unit', 1, {automated_wiring: 7.5, circuit_board: 5, heavy_modular_frame: 1, computer: 1})
-portable_miner = ThingRecipe('portable-miner', 60, 1, {motor: 1, steel_pipe: 4, iron_rod: 4, iron_plate: 2})
+    'heavy-modular-frame': ThingRecipe(30, 1, {'modular-frame': 5, 'steel-pipe': 15, 'encased-industrial-beam': 5, 'screw': 100}),
+    'modular-engine': ThingRecipe(60, 1, {'motor': 2, 'rubber': 15, 'smart-plating': 2}),
+    'adaptive-control-unit': ThingPerMin(1, {'automated-wiring': 7.5, 'circuit-board': 5, 'heavy-modular-frame': 1, 'computer': 1}),
+    'portable-miner': ThingRecipe(60, 1, {'motor': 1, 'steel-pipe': 4, 'iron-rod': 4, 'iron-plate': 2}),
 
-water = ThingRecipe('water')
-bauxite = ThingRecipe('bauxite')
-bauxite_coal = ThingRecipe('bauxite_coal')
-alumina_solution = ThingRecipe('alumina-solution', 6, 12, {bauxite: 12, water: 18}, {silica: 5})
-aluminum_scrap = ThingRecipe('aluminum-scrap', 1, 6, {alumina_solution: 4, bauxite_coal: 2}, {water: 2})
-aluminum_ingot = ThingRecipe('aluminum-ingot', 4, 4, {aluminum_scrap: 6, silica: 5})
-aluminum_casing = ThingRecipe('aluminum-casing', 2, 2, {aluminum_ingot: 3})
-alclad_aluminum_sheet = ThingRecipe('alclad-aluminum-sheet', 6, 3, {aluminum_ingot: 3, copper_ingot: 1})
+    'alumina-solution': ThingRecipe(6, 12, {'bauxite': 12, 'water': 18}, {'silica': 5}),
+    'aluminum-scrap': ThingRecipe(1, 6, {'alumina-solution': 4, 'bauxite-coal': 2}, {'water': 2}),
+    'aluminum-ingot': ThingRecipe(4, 4, {'aluminum-scrap': 6, 'silica': 5}),
+    'aluminum-casing': ThingRecipe(2, 2, {'aluminum-ingot': 3}),
+    'alclad-aluminum-sheet': ThingRecipe(6, 3, {'aluminum-ingot': 3, 'copper-ingot': 1}),
 
-radio_control_unit = ThingRecipe('radio-control-unit', 48, 2, {aluminum_casing: 32, crystal_oscillator: 1, computer: 1})
+    'radio-control-unit': ThingRecipe(48, 2, {'aluminum-casing': 32, 'crystal-oscillator': 1, 'computer': 1}),
+}
 
 
 ################
 # UPDATE THESE #
 ################
-MINING_RATES = {iron_ore: 240*4, copper_ore: 240*2, limestone: 240*2, steel_iron: 240*2, steel_coal: 240*2, caterium_ore: 240, crude_oil: 600, sulfur: 240, sulfur_coal: 120*2, raw_quartz: 240*2, bauxite: 240+120+60, bauxite_coal: 240*2, water: 4*120, polymer_resin: 0, heavy_oil_residue: 0}
+MINING_RATES = {'iron': 240*4, 'copper': 240*2, 'limestone': 240*2, 'steel-iron': 240*2, 'steel-coal': 240*2, 'caterium': 240, 'oil': 600, 'sulfur': 240, 'sulfur-coal': 120*2, 'raw-quartz': 240*2, 'bauxite': 240+120+60, 'bauxite-coal': 240*2, 'water': 120*4, 'polymer-resin': 0, 'heavy-oil-residue': 0}
 ################
 
 
 TOWERS = {
-    iron_ore: 'Iron',
-    copper_ore: 'Copper',
-    limestone: 'Limestone',
-    steel_iron: 'Steel',
-    caterium_ore: 'Caterium',
-    crude_oil: 'Oil',
-    polymer_resin: 'Oil',
-    heavy_oil_residue: 'Oil',
-    sulfur: 'Sulfur',
-    raw_quartz: 'Quartz',
-    bauxite: 'Bauxite',
+    'iron': 'Iron',
+    'copper': 'Copper',
+    'limestone': 'Limestone',
+    'steel-iron': 'Steel',
+    'caterium': 'Caterium',
+    'oil': 'Oil',
+    'polymer-resin': 'Oil',
+    'heavy-oil-residue': 'Oil',
+    'sulfur': 'Sulfur',
+    'raw-quartz': 'Quartz',
+    'bauxite': 'Bauxite',
 }
 
 
 grouped_things = {}
 
-for var in dict(locals()).values():
-    if isinstance(var, ThingRecipe):
-        if len(var.components) > 0:
-            group = TOWERS[next(iter(x for x in var.base_units if x in TOWERS))]
-            if group not in grouped_things:
-                grouped_things[group] = []
-            grouped_things[group].append(var)
+for name, var in ALL_THINGS.items():
+    group = TOWERS[next(iter(x for x in var.base_units if x in TOWERS))]
+    if group not in grouped_things:
+        grouped_things[group] = []
+    grouped_things[group].append((name, var))
 
 for tower_name, recipes in grouped_things.items():
     print('\n%s tower:' % tower_name)
-    print('\n'.join(str(x) for x in recipes))
+    print('\n'.join(f'{x[0]}  {x[1]!s}' for x in recipes))
