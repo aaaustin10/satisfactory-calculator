@@ -36,12 +36,14 @@ def ngmop3a2(n):
 
 
 class ThingRecipe():
-    def __init__(self, name, seconds_to_produce=None, amount_produced=None, components={}):
+    def __init__(self, name, seconds_to_produce=None, amount_produced=None, components={}, byproducts={}):
         self.name = name
         if self.name in components:
             raise Exception('Component cannot be made of itself.')
         assert all(isinstance(c, ThingRecipe) for c in components)
+        assert all(isinstance(b, ThingRecipe) for b in byproducts)
         self.components = components
+        self.byproducts = byproducts
         self.seconds_to_produce = seconds_to_produce
         self.amount_produced = amount_produced
         self.base_units = self._resolve()
@@ -94,17 +96,23 @@ class ThingRecipe():
         return f'<{self.__class__.__name__}: {str(self)}>'
 
 class ThingPerMin(ThingRecipe):
-    def __init__(self, name, amount_produced_per_min=None, components_per_min={}):
+    def __init__(self, name, amount_produced_per_min=None, components_per_min={}, byproducts_per_min={}):
         seconds_to_produce = 60 / amount_produced_per_min
+
         components = {}
         for component, component_per_min in components_per_min.items():
             components[component] = component_per_min / amount_produced_per_min # == components per ThingRecipe
-        super(ThingPerMin, self).__init__(name, seconds_to_produce, 1, components)
+
+        byproducts = {}
+        for byproduct, byproduct_per_min in byproducts_per_min.items():
+            byproducts[byproduct] = byproduct_per_min / amount_produced_per_min # == byproducts per ThingRecipe
+
+        super(ThingPerMin, self).__init__(name, seconds_to_produce, 1, components, byproducts)
 
 
 
-# ThingRecipe('name', seconds_to_produce, amount_produced, {ingredients: count})
-# ThingPerMin('name', amount_produced_per_min, {ingredients: count_per_min})
+# ThingRecipe('name', seconds_to_produce, amount_produced, {ingredients: count}, {byproducts: count})
+# ThingPerMin('name', amount_produced_per_min, {ingredients: count_per_min}, {byproducts: count_per_min})
 
 iron_ore = ThingRecipe('iron')
 iron_ingot = ThingRecipe('iron-ingot', 2, 1, {iron_ore: 1})
@@ -147,12 +155,13 @@ motor = ThingRecipe('motor', 12, 1, {stator: 2, rotor: 2})
 
 crude_oil = ThingRecipe('oil')
 polymer_resin = ThingRecipe('polymer-resin')
-fuel = ThingRecipe('fuel', 6, 4, {crude_oil: 6}) # byproducts: {polymer_resin: 3}
-plastic = ThingRecipe('plastic', 6, 2, {crude_oil: 3}) # byproducts: {heavy_oil_residue: 1}
-rubber = ThingRecipe('rubber', 6, 2, {crude_oil: 3}) # byproducts: {heavy_oil_residue: 2}
-#residual_fuel = ThingRecipe('residual-fuel', 6, 4, {heavy_oil_residue: 6})
-#residual_plastic = ThingRecipe('residual-plastic', 5, 2, {polymer_resin: 6})
-#residual_rubber = ThingRecipe('residual-rubber', 6, 2, {polymer_resin: 4})
+heavy_oil_residue = ThingRecipe('heavy-oil-residue')
+fuel = ThingRecipe('fuel', 6, 4, {crude_oil: 6}, {polymer_resin: 3})
+plastic = ThingRecipe('plastic', 6, 2, {crude_oil: 3}, {heavy_oil_residue: 1})
+rubber = ThingRecipe('rubber', 6, 2, {crude_oil: 3}, {heavy_oil_residue: 2})
+residual_fuel = ThingRecipe('residual-fuel', 6, 4, {heavy_oil_residue: 6})
+residual_plastic = ThingRecipe('residual-plastic', 5, 2, {polymer_resin: 6})
+residual_rubber = ThingRecipe('residual-rubber', 6, 2, {polymer_resin: 4})
 fuel_generator = ThingPerMin('fuel-generator', 150, {fuel: 12})
 
 sulfur = ThingRecipe('sulfur')
@@ -182,8 +191,8 @@ portable_miner = ThingRecipe('portable-miner', 60, 1, {motor: 1, steel_pipe: 4, 
 water = ThingRecipe('water')
 bauxite = ThingRecipe('bauxite')
 bauxite_coal = ThingRecipe('bauxite_coal')
-alumina_solution = ThingRecipe('alumina-solution', 6, 12, {bauxite: 12, water: 18}) # byproducts: {silica: 5}
-aluminum_scrap = ThingRecipe('aluminum-scrap', 1, 6, {alumina_solution: 4, bauxite_coal: 2}) # byproducts: {water: 2}
+alumina_solution = ThingRecipe('alumina-solution', 6, 12, {bauxite: 12, water: 18}, {silica: 5})
+aluminum_scrap = ThingRecipe('aluminum-scrap', 1, 6, {alumina_solution: 4, bauxite_coal: 2}, {water: 2})
 aluminum_ingot = ThingRecipe('aluminum-ingot', 4, 4, {aluminum_scrap: 6, silica: 5})
 aluminum_casing = ThingRecipe('aluminum-casing', 2, 2, {aluminum_ingot: 3})
 alclad_aluminum_sheet = ThingRecipe('alclad-aluminum-sheet', 6, 3, {aluminum_ingot: 3, copper_ingot: 1})
@@ -194,7 +203,7 @@ radio_control_unit = ThingRecipe('radio-control-unit', 48, 2, {aluminum_casing: 
 ################
 # UPDATE THESE #
 ################
-MINING_RATES = {iron_ore: 240*4, copper_ore: 240*2, limestone: 240*2, steel_iron: 240*2, steel_coal: 240*2, caterium_ore: 240, crude_oil: 600, sulfur: 240, sulfur_coal: 120*2, raw_quartz: 240*2, bauxite: 240+120+60, bauxite_coal: 240*2, water: 4*120}
+MINING_RATES = {iron_ore: 240*4, copper_ore: 240*2, limestone: 240*2, steel_iron: 240*2, steel_coal: 240*2, caterium_ore: 240, crude_oil: 600, sulfur: 240, sulfur_coal: 120*2, raw_quartz: 240*2, bauxite: 240+120+60, bauxite_coal: 240*2, water: 4*120, polymer_resin: 0, heavy_oil_residue: 0}
 ################
 
 
@@ -205,6 +214,8 @@ TOWERS = {
     steel_iron: 'Steel',
     caterium_ore: 'Caterium',
     crude_oil: 'Oil',
+    polymer_resin: 'Oil',
+    heavy_oil_residue: 'Oil',
     sulfur: 'Sulfur',
     raw_quartz: 'Quartz',
     bauxite: 'Bauxite',
@@ -216,11 +227,11 @@ grouped_things = {}
 for var in dict(locals()).values():
     if isinstance(var, ThingRecipe):
         if len(var.components) > 0:
-            group = next(iter(x for x in var.base_units if x in TOWERS))
+            group = TOWERS[next(iter(x for x in var.base_units if x in TOWERS))]
             if group not in grouped_things:
                 grouped_things[group] = []
             grouped_things[group].append(var)
 
-for base_unit, tower_name in TOWERS.items():
+for tower_name, recipes in grouped_things.items():
     print('\n%s tower:' % tower_name)
-    print('\n'.join(str(x) for x in grouped_things[base_unit]))
+    print('\n'.join(str(x) for x in recipes))
