@@ -198,16 +198,29 @@ MINING_RATES = {iron_ore: 240*4, copper_ore: 240*2, limestone: 240*2, steel_iron
 ################
 
 
+TOWERS = {
+    iron_ore: 'Iron',
+    copper_ore: 'Copper',
+    limestone: 'Limestone',
+    steel_iron: 'Steel',
+    caterium_ore: 'Caterium',
+    crude_oil: 'Oil',
+    sulfur: 'Sulfur',
+    raw_quartz: 'Quartz',
+    bauxite: 'Bauxite',
+}
+
+
 grouped_things = {}
 
 for var in dict(locals()).values():
     if isinstance(var, ThingRecipe):
         if len(var.components) > 0:
-            group = next(iter(var.base_units))
+            group = next(iter(x for x in var.base_units if x in TOWERS))
             if group not in grouped_things:
                 grouped_things[group] = []
             grouped_things[group].append(var)
 
-for k,v in grouped_things.items():
-    print('\n%s tower:' % k)
-    print('\n'.join(str(x) for x in v))
+for base_unit, tower_name in TOWERS.items():
+    print('\n%s tower:' % tower_name)
+    print('\n'.join(str(x) for x in grouped_things[base_unit]))
