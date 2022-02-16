@@ -46,7 +46,6 @@ class ThingRecipe():
         self.byproducts = byproducts
         self.seconds_to_produce = seconds_to_produce
         self.amount_produced = amount_produced
-        self.base_units = self._resolve()
         if len(self.components) > 0:
             self.per_min_mult = self.amount_produced / self.seconds_to_produce * 60
 
@@ -63,19 +62,24 @@ class ThingRecipe():
 
         return min_building_count, limiting_factors
 
-    def _resolve(self):
-        if len(self.components) == 0:
-            return {self: 1}
+    @property
+    def base_units(self):
+        base_units = getattr(self, '_base_units', {})
+        if base_units:
+            return base_units
 
-        base_units = {}
+        if len(self.components) == 0:
+            self._base_units = {self: 1}
+            return self._base_units
+
         for component, amount in self.components.items():
             component_base_units = component.base_units
             for base_component, base_amount in component_base_units.items():
                 base_units.setdefault(base_component, 0)
                 base_units[base_component] += (amount / self.amount_produced) * base_amount
 
-        base_units = OrderedDict(sorted(base_units.items(), key=lambda x: x[1], reverse=True))
-        return base_units
+        self._base_units = OrderedDict(sorted(base_units.items(), key=lambda x: x[1], reverse=True))
+        return self._base_units
 
     def __str__(self):
         if len(self.components) == 0:
